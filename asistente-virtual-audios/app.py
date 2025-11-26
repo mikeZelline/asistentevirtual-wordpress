@@ -503,23 +503,23 @@ def generate(state: State):
 # URLs de páginas web para extraer información
 # Grupo 1: Páginas con crawling (navega por enlaces internos)
 paginas_con_crawl = [
-    "https://www.strategysoftware.com/es",
-    "https://www.sophos.com/es-es",
-    "https://www.appgate.com/",
-    "https://www.sentisis.com/",
-    "https://www.auraquantic.com/es/",
-    "https://www.checkpoint.com/es/"
+    #"https://www.strategysoftware.com/es",
+    #"https://www.sophos.com/es-es",
+    #"https://www.appgate.com/",
+    #"https://www.sentisis.com/",
+    #"https://www.auraquantic.com/es/",
+    #"https://www.checkpoint.com/es/"
 ]
 
 # Grupo 2: Páginas sin crawling (solo la página especificada)
 paginas_sin_crawl = [
-    "https://aws.amazon.com/es/ai/",
-    "https://aws.amazon.com/es/quicksuite/",
-    "https://aws.amazon.com/es/",
-    "https://aws.amazon.com/es/security/",
-    "https://www.motorolasolutions.com/es_xl.html",
-    "https://www.motorolasolutions.com/es_xl/video-security-analytics/fixed-video-security.html",
-    "https://www.motorolasolutions.com/en_xl/video-security-access-control/body-cameras-and-in-car-video.html"
+    #"https://aws.amazon.com/es/ai/",
+    #"https://aws.amazon.com/es/quicksuite/",
+    #"https://aws.amazon.com/es/",
+    #"https://aws.amazon.com/es/security/",
+    #"https://www.motorolasolutions.com/es_xl.html",
+    #"https://www.motorolasolutions.com/es_xl/video-security-analytics/fixed-video-security.html",
+    #"https://www.motorolasolutions.com/en_xl/video-security-access-control/body-cameras-and-in-car-video.html"
 ]
 
 def crawl_website(start_url, max_pages=50, max_depth=2, delay=1.5):
