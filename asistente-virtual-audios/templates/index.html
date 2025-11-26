@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asistente Virtual Contratación Pública</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="header-content">
+                <div>
+                    <h1>💬 Mentor comercial IBUX</h1>
+                    <p>Mentor comercial experto en ventas B2B con enfoque 3C y alto rendimiento.</p>
+                </div>
+                <a href="/logout" class="logout-button">Cerrar Sesión</a>
+            </div>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot-message">
+                <div class="message-content">
+                    ¡Hola! Soy tu mentor comercial. Pregúntame lo que necesites saber.
+                </div>
+            </div>
+        </div>
+        
+        <div class="chat-input-container">
+            <form id="chatForm">
+                <input 
+                    type="text" 
+                    id="userInput" 
+                    placeholder="Escribe tu pregunta aquí..." 
+                    autocomplete="off"
+                >
+                <button type="button" id="recordButton" class="record-button" title="Grabar audio">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                        <line x1="12" y1="19" x2="12" y2="23"/>
+                        <line x1="8" y1="23" x2="16" y2="23"/>
+                    </svg>
+                </button>
+                <button type="submit" id="sendButton">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                    </svg>
+                </button>
+            </form>
+            <div id="recordingStatus" class="recording-status" style="display: none;">
+                <span class="recording-dot"></span>
+                <span>Grabando...</span>
+                <button id="stopRecordingButton" class="stop-recording-button">Detener</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chatMessages');
+        const chatForm = document.getElementById('chatForm');
+        const userInput = document.getElementById('userInput');
+        const sendButton = document.getElementById('sendButton');
+        const recordButton = document.getElementById('recordButton');
+        const stopRecordingButton = document.getElementById('stopRecordingButton');
+        const recordingStatus = document.getElementById('recordingStatus');
+        
+        let isRecording = false;
+
+        // Variable global para controlar el audio actual
+        let currentAudioMessageDiv = null;
+        let stopAudioButton = null;
+
+        // Función para convertir Markdown básico a HTML
+        function markdownToHtml(markdown) {
+            if (!markdown) return '';
+            
+            let html = markdown;
+            const lines = html.split('\n');
+            let result = [];
+            let inList = false;
+            let listItems = [];
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                // Títulos
+                if (line.startsWith('### ')) {
+                    if (inList) {
+                        result.push('<ul style="margin: 12px 0; padding-left: 24px; list-style-type: disc;">' + listItems.join('') + '</ul>');
+                        listItems = [];
+                        inList = false;
+                    }
+                    result.push('<h3 style="font-size: 1.1em; font-weight: bold; margin-top: 16px; margin-bottom: 8px; color: #333;">' + line.substring(4) + '</h3>');
+                } else if (line.startsWith('## ')) {
+                    if (inList) {
+                        result.push('<ul style="margin: 12px 0; padding-left: 24px; list-style-type: disc;">' + listItems.join('') + '</ul>');
+                        listItems = [];
+                        inList = false;
+                    }
+                    result.push('<h2 style="font-size: 1.3em; font-weight: bold; margin-top: 20px; margin-bottom: 12px; color: #2c3e50;">' + line.substring(3) + '</h2>');
+                } else if (line.startsWith('# ')) {
+                    if (inList) {
+                        result.push('<ul style="margin: 12px 0; padding-left: 24px; list-style-type: disc;">' + listItems.join('') + '</ul>');
+                        listItems = [];
+                        inList = false;
+                    }
+                    result.push('<h1 style="font-size: 1.5em; font-weight: bold; margin-top: 24px; margin-bottom: 16px; color: #1a1a1a;">' + line.substring(2) + '</h1>');
+                }
+                // Listas con viñetas
+                else if (line.startsWith('- ') || line.startsWith('* ')) {
+                    if (!inList) inList = true;
+                    const itemText = line.substring(2);
+                    listItems.push('<li style="margin: 6px 0; padding-left: 8px;">' + formatInline(itemText) + '</li>');
+                }
+                // Listas numeradas
+                else if (/^\d+\.\s/.test(line)) {
+                    if (!inList) inList = true;
+                    const itemText = line.replace(/^\d+\.\s/, '');
+                    listItems.push('<li style="margin: 6px 0; padding-left: 8px;">' + formatInline(itemText) + '</li>');
+                }
+                // Línea vacía
+                else if (line === '') {
+                    if (inList) {
+                        result.push('<ul style="margin: 12px 0; padding-left: 24px; list-style-type: disc;">' + listItems.join('') + '</ul>');
+                        listItems = [];
+                        inList = false;
+                    }
+                    if (result.length > 0 && !result[result.length - 1].endsWith('</p>')) {
+                        result.push('<br>');
+                    }
+                }
+                // Párrafo normal
+                else {
+                    if (inList) {
+                        result.push('<ul style="margin: 12px 0; padding-left: 24px; list-style-type: disc;">' + listItems.join('') + '</ul>');
+                        listItems = [];
+                        inList = false;
+                    }
+                    result.push('<p style="margin: 12px 0; line-height: 1.6;">' + formatInline(line) + '</p>');
+                }
+            }
+            
+            // Cerrar lista si queda abierta
+            if (inList) {
+                result.push('<ul style="margin: 12px 0; padding-left: 24px; list-style-type: disc;">' + listItems.join('') + '</ul>');
+            }
+            
+            return result.join('');
+        }
+        
+        // Función auxiliar para formatear texto inline (negritas, cursivas)
+        function formatInline(text) {
+            let formatted = text;
+            // Negritas
+            formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight: bold; color: #2c3e50;">$1</strong>');
+            // Cursivas
+            formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            return formatted;
+        }
+
+        // Función para agregar mensaje al chat
+        function addMessage(message, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            
+            // Contenedor para el texto (con soporte para Markdown)
+            const textDiv = document.createElement('div');
+            textDiv.className = 'formatted-message';
+            textDiv.style.cssText = 'line-height: 1.6;';
+            if (isUser) {
+                textDiv.textContent = message; // Los mensajes del usuario sin formato
+            } else {
+                textDiv.innerHTML = markdownToHtml(message); // Los mensajes del bot con formato
+            }
+            messageContent.appendChild(textDiv);
+            
+            // Si es mensaje del bot, agregar botón de pausa
+            if (!isUser && 'speechSynthesis' in window) {
+                const audioControlsDiv = document.createElement('div');
+                audioControlsDiv.className = 'audio-controls';
+                audioControlsDiv.style.marginTop = '8px';
+                audioControlsDiv.style.display = 'flex';
+                audioControlsDiv.style.alignItems = 'center';
+                audioControlsDiv.style.gap = '8px';
+                
+                stopAudioButton = document.createElement('button');
+                stopAudioButton.className = 'stop-audio-button';
+                stopAudioButton.innerHTML = `
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+                        <rect x="6" y="4" width="4" height="16" rx="1"></rect>
+                        <rect x="14" y="4" width="4" height="16" rx="1"></rect>
+                    </svg>
+                `;
+                stopAudioButton.title = 'Pausar audio';
+                stopAudioButton.style.display = 'none'; // Oculto inicialmente
+                
+                stopAudioButton.addEventListener('click', () => {
+                    // Detener audio de Eleven Labs
+                    if (currentAudio) {
+                        currentAudio.pause();
+                        currentAudio.currentTime = 0;
+                        currentAudio = null;
+                    }
+                    if (stopAudioButton) {
+                        stopAudioButton.style.display = 'none';
+                    }
+                    currentAudioMessageDiv = null;
+                });
+                
+                audioControlsDiv.appendChild(stopAudioButton);
+                messageContent.appendChild(audioControlsDiv);
+                
+                // Guardar referencia al mensaje actual
+                currentAudioMessageDiv = messageDiv;
+            }
+            
+            messageDiv.appendChild(messageContent);
+            chatMessages.appendChild(messageDiv);
+            
+            // Scroll al final
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Si es mensaje del bot, reproducir audio automáticamente usando Eleven Labs
+            // DESACTIVADO: Por ahora solo mostrar texto, no convertir a voz
+            // if (!isUser) {
+            //     speakText(message, stopAudioButton);
+            // }
+        }
+
+        // Función para crear mensaje con cargador (donde aparecerá la respuesta)
+        function createLoadingMessage() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot-message';
+            messageDiv.id = 'loadingMessage';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            
+            // Cargador en lugar del texto
+            const loaderDiv = document.createElement('div');
+            loaderDiv.className = 'message-loader';
+            loaderDiv.innerHTML = '<div class="loading-spinner"></div><span>Generando respuesta...</span>';
+            messageContent.appendChild(loaderDiv);
+            
+            messageDiv.appendChild(messageContent);
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            return messageDiv;
+        }
+
+        // Función para reemplazar cargador con texto
+        function replaceLoaderWithMessage(messageDiv, messageText, stopButton) {
+            const messageContent = messageDiv.querySelector('.message-content');
+            messageContent.innerHTML = ''; // Limpiar contenido
+            
+            // Contenedor para el texto (con soporte para Markdown)
+            const textDiv = document.createElement('div');
+            textDiv.className = 'formatted-message';
+            textDiv.style.cssText = 'line-height: 1.6; color: #333;';
+            textDiv.innerHTML = markdownToHtml(messageText);
+            messageContent.appendChild(textDiv);
+            
+            // Agregar controles de audio
+            if ('speechSynthesis' in window) {
+                const audioControlsDiv = document.createElement('div');
+                audioControlsDiv.className = 'audio-controls';
+                audioControlsDiv.style.marginTop = '8px';
+                audioControlsDiv.style.display = 'flex';
+                audioControlsDiv.style.alignItems = 'center';
+                audioControlsDiv.style.gap = '8px';
+                
+                stopAudioButton = stopButton || document.createElement('button');
+                stopAudioButton.className = 'stop-audio-button';
+                stopAudioButton.innerHTML = `
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+                        <rect x="6" y="4" width="4" height="16" rx="1"></rect>
+                        <rect x="14" y="4" width="4" height="16" rx="1"></rect>
+                    </svg>
+                `;
+                stopAudioButton.title = 'Pausar audio';
+                stopAudioButton.style.display = 'none';
+                
+                stopAudioButton.addEventListener('click', () => {
+                    if (currentAudio) {
+                        currentAudio.pause();
+                        currentAudio.currentTime = 0;
+                        currentAudio = null;
+                    }
+                    if (stopAudioButton) {
+                        stopAudioButton.style.display = 'none';
+                    }
+                    currentAudioMessageDiv = null;
+                });
+                
+                audioControlsDiv.appendChild(stopAudioButton);
+                messageContent.appendChild(audioControlsDiv);
+                
+                currentAudioMessageDiv = messageDiv;
+            }
+        }
+        
+        // Variable global para el audio actual
+        let currentAudio = null;
+
+        // Variable para almacenar el texto mientras se carga el audio
+        let pendingMessage = null;
+        let pendingMessageDiv = null;
+        
+        // Función para convertir texto a voz usando Eleven Labs TTS
+        async function speakText(text, stopButton, messageDiv = null) {
+            // Detener audio anterior si existe
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                currentAudio = null;
+            }
+            
+            // Ocultar botón anterior si existe
+            if (stopAudioButton && stopAudioButton !== stopButton) {
+                stopAudioButton.style.display = 'none';
+            }
+            
+            // Guardar referencia al mensaje si se proporciona
+            if (messageDiv) {
+                pendingMessageDiv = messageDiv;
+                pendingMessage = text;
+            }
+            
+            try {
+                // Llamar al endpoint de TTS
+                const response = await fetch('/tts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+                    console.error('Error al generar audio:', errorData.error);
+                    
+                    // Si hay un mensaje pendiente, mostrar el texto aunque falle el audio
+                    if (pendingMessageDiv && pendingMessage) {
+                        replaceLoaderWithMessage(pendingMessageDiv, pendingMessage, stopButton);
+                        pendingMessage = null;
+                        pendingMessageDiv = null;
+                    } else if (stopButton) {
+                        stopButton.style.display = 'none';
+                    }
+                    return;
+                }
+                
+                // Obtener el audio como blob
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                
+                // Crear elemento de audio
+                const audio = new Audio(audioUrl);
+                currentAudio = audio;
+                
+                // Esperar a que el audio esté completamente cargado
+                await new Promise((resolve, reject) => {
+                    audio.oncanplaythrough = resolve;
+                    audio.onerror = reject;
+                    
+                    // Timeout de seguridad
+                    setTimeout(() => {
+                        if (audio.readyState >= 3) { // HAVE_FUTURE_DATA o superior
+                            resolve();
+                        } else {
+                            reject(new Error('Timeout al cargar audio'));
+                        }
+                    }, 30000); // 30 segundos máximo
+                });
+                
+                // Audio listo - ahora mostrar el texto y reproducir
+                if (pendingMessageDiv && pendingMessage) {
+                    replaceLoaderWithMessage(pendingMessageDiv, pendingMessage, stopButton);
+                    // Obtener el botón actualizado después de reemplazar el cargador
+                    if (!stopButton) {
+                        stopButton = stopAudioButton;
+                    }
+                    pendingMessage = null;
+                    pendingMessageDiv = null;
+                }
+                
+                // Mostrar botón de pausa
+                if (stopButton) {
+                    stopButton.style.display = 'inline-flex';
+                }
+                
+                // Eventos del audio
+                audio.onended = () => {
+                    URL.revokeObjectURL(audioUrl);
+                    if (stopButton) {
+                        stopButton.style.display = 'none';
+                    }
+                    currentAudio = null;
+                    currentAudioMessageDiv = null;
+                };
+                
+                audio.onerror = () => {
+                    console.error('Error al reproducir audio');
+                    URL.revokeObjectURL(audioUrl);
+                    if (stopButton) {
+                        stopButton.style.display = 'none';
+                    }
+                    currentAudio = null;
+                    currentAudioMessageDiv = null;
+                };
+                
+                // Reproducir audio
+                await audio.play();
+                
+            } catch (error) {
+                console.error('Error al generar o reproducir audio:', error);
+                
+                // Si hay un mensaje pendiente, mostrar el texto aunque falle el audio
+                if (pendingMessageDiv && pendingMessage) {
+                    replaceLoaderWithMessage(pendingMessageDiv, pendingMessage, stopButton);
+                    pendingMessage = null;
+                    pendingMessageDiv = null;
+                } else if (stopButton) {
+                    stopButton.style.display = 'none';
+                }
+                currentAudio = null;
+            }
+        }
+
+        // Función para mostrar indicador de carga
+        function showTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message bot-message typing-indicator';
+            typingDiv.id = 'typingIndicator';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            messageContent.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+            
+            typingDiv.appendChild(messageContent);
+            chatMessages.appendChild(typingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Función para remover indicador de carga
+        function removeTypingIndicator() {
+            const typingIndicator = document.getElementById('typingIndicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+
+        // Función para verificar y solicitar permisos del micrófono
+        // Usa getUserMedia directamente para que el navegador muestre el diálogo de permisos
+        async function requestMicrophonePermission() {
+            try {
+                // Intentar usar la API moderna - intentar directamente sin verificar primero
+                // Esto permite que el navegador muestre su diálogo de permisos
+                let getUserMediaFn = null;
+                
+                // Intentar obtener la función de getUserMedia de diferentes formas
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    getUserMediaFn = (constraints) => navigator.mediaDevices.getUserMedia(constraints);
+                } else if (navigator.getUserMedia) {
+                    // API legacy
+                    getUserMediaFn = (constraints) => {
+                        return new Promise((resolve, reject) => {
+                            navigator.getUserMedia(constraints, resolve, reject);
+                        });
+                    };
+                } else if (navigator.webkitGetUserMedia) {
+                    // Webkit legacy
+                    getUserMediaFn = (constraints) => {
+                        return new Promise((resolve, reject) => {
+                            navigator.webkitGetUserMedia(constraints, resolve, reject);
+                        });
+                    };
+                } else if (navigator.mozGetUserMedia) {
+                    // Mozilla legacy
+                    getUserMediaFn = (constraints) => {
+                        return new Promise((resolve, reject) => {
+                            navigator.mozGetUserMedia(constraints, resolve, reject);
+                        });
+                    };
+                }
+                
+                // Si encontramos alguna forma de getUserMedia, intentar usarla
+                if (getUserMediaFn) {
+                    const stream = await getUserMediaFn({ audio: true });
+                    // Detener el stream inmediatamente, solo queríamos verificar/solicitar el permiso
+                    stream.getTracks().forEach(track => track.stop());
+                    return true;
+                }
+                
+                // Si llegamos aquí, realmente no hay soporte
+                throw new Error('getUserMedia no está disponible');
+                
+            } catch (error) {
+                console.error('Error al solicitar permiso del micrófono:', error);
+                
+                // Verificar si es un error de tipo (API no disponible)
+                if (error.name === 'TypeError' || error.message === 'getUserMedia no está disponible') {
+                    // Puede ser que requiera HTTPS o que la API esté bloqueada
+                    const isSecure = window.location.protocol === 'https:' || 
+                                   window.location.hostname === 'localhost' || 
+                                   window.location.hostname === '127.0.0.1';
+                    if (!isSecure) {
+                        alert('El acceso al micrófono requiere una conexión segura (HTTPS) cuando se accede desde un servidor remoto. Por favor, contacta al administrador para configurar HTTPS en el servidor, o accede desde localhost para probar.');
+                    } else {
+                        alert('Tu navegador no soporta acceso al micrófono o está bloqueado. Por favor, verifica la configuración de tu navegador.');
+                    }
+                    return false;
+                } else if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                    // El usuario denegó el permiso en el diálogo del navegador
+                    alert('Se necesita permiso para usar el micrófono. Por favor, recarga la página y permite el acceso cuando se te solicite.');
+                    return false;
+                } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                    alert('No se encontró ningún micrófono. Por favor, conecta un micrófono e intenta de nuevo.');
+                    return false;
+                } else if (error.name === 'NotSupportedError') {
+                    alert('El acceso al micrófono no está soportado en este contexto. Por favor, verifica la configuración de tu navegador.');
+                    return false;
+                } else {
+                    // Error genérico - mostrar información del error
+                    console.error('Detalles del error:', error);
+                    alert('Error al acceder al micrófono. Por favor, verifica la configuración de tu navegador o contacta al administrador.');
+                    return false;
+                }
+            }
+        }
+
+        // Función para iniciar grabación con Web Speech API
+        async function startRecording() {
+            // Verificar si el navegador soporta Web Speech API
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('Tu navegador no soporta reconocimiento de voz. Por favor, usa Chrome, Edge o Safari.');
+                return;
+            }
+            
+            // Solicitar permiso del micrófono antes de iniciar
+            const hasPermission = await requestMicrophonePermission();
+            if (!hasPermission) {
+                return;
+            }
+            
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            
+            // Configuración mejorada para mejor reconocimiento
+            recognition.lang = 'es-CO'; // Español de Colombia (mejor para contratación pública colombiana)
+            recognition.continuous = false; // Detenerse automáticamente después de una pausa
+            recognition.interimResults = true; // Mostrar resultados intermedios para mejor precisión
+            recognition.maxAlternatives = 3; // Obtener múltiples alternativas para elegir la mejor
+            
+            recordButton.style.display = 'none';
+            recordingStatus.style.display = 'flex';
+            userInput.disabled = true;
+            sendButton.disabled = true;
+            
+            let finalTranscript = '';
+            let interimTranscript = '';
+            let recognitionStartTime = null;
+            const INITIAL_DELAY = 300; // Esperar 1 segundo antes de procesar resultados
+            
+            recognition.onstart = () => {
+                isRecording = true;
+                finalTranscript = '';
+                interimTranscript = '';
+                recognitionStartTime = Date.now();
+                console.log('Reconocimiento iniciado - esperando ' + INITIAL_DELAY + 'ms antes de procesar audio...');
+                
+                // Actualizar mensaje para indicar que debe esperar
+                const statusText = recordingStatus.querySelector('span:nth-child(2)');
+                if (statusText) {
+                    statusText.textContent = 'Preparando... (espera un momento antes de hablar)';
+                    setTimeout(() => {
+                        if (isRecording && statusText) {
+                            statusText.textContent = 'Grabando...';
+                        }
+                    }, INITIAL_DELAY);
+                }
+            };
+            
+            recognition.onresult = async (event) => {
+                // Ignorar resultados durante el delay inicial
+                const elapsed = Date.now() - recognitionStartTime;
+                if (elapsed < INITIAL_DELAY) {
+                    console.log(`Ignorando resultado inicial (${elapsed}ms < ${INITIAL_DELAY}ms)`);
+                    return;
+                }
+                
+                // Combinar todos los resultados para mejor precisión
+                let interim = '';
+                let final = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    const confidence = event.results[i][0].confidence || 0;
+                    
+                    // Si es resultado final, agregarlo a final
+                    if (event.results[i].isFinal) {
+                        final += transcript + ' ';
+                        // Si hay múltiples alternativas y la primera no es muy confiable, intentar con otras
+                        if (confidence < 0.7 && event.results[i].length > 1) {
+                            // Probar con la segunda alternativa si está disponible
+                            const altTranscript = event.results[i][1]?.transcript;
+                            if (altTranscript) {
+                                console.log(`Alternativa considerada: "${altTranscript}" (confianza: ${event.results[i][1]?.confidence || 'N/A'})`);
+                            }
+                        }
+                    } else {
+                        // Resultado intermedio
+                        interim += transcript + ' ';
+                    }
+                }
+                
+                interimTranscript = interim;
+                finalTranscript += final;
+                
+                // Mostrar resultado intermedio en consola para debug
+                if (interim.trim()) {
+                    console.log("Resultado intermedio:", interim.trim());
+                }
+                
+                // Si hay resultado final, procesarlo
+                if (final.trim()) {
+                    console.log("Resultado final:", final.trim());
+                    console.log("Confianza:", event.results[event.results.length - 1][0].confidence);
+                }
+            };
+            
+            recognition.onend = () => {
+                // Cuando termine, usar el transcript final completo
+                let completeTranscript = finalTranscript.trim();
+                
+                // Si no hay transcript final pero hay intermedio, usar el intermedio
+                if (!completeTranscript && interimTranscript.trim()) {
+                    completeTranscript = interimTranscript.trim();
+                    console.log("Usando transcript intermedio:", completeTranscript);
+                }
+                
+                console.log("TRANSCRIPT COMPLETO:", completeTranscript);
+                
+                if (completeTranscript) {
+                    // Agregar mensaje del usuario con el texto transcrito
+                    addMessage(completeTranscript, true);
+                    
+                    // Enviar pregunta al chat (sin audio)
+                    sendChatMessage(completeTranscript, false).then(() => {
+                        stopRecording();
+                    });
+                } else {
+                    // Si no hay transcript, solo detener
+                    stopRecording();
+                }
+            };
+            
+            recognition.onerror = (event) => {
+                console.error('Error en reconocimiento de voz:', event.error);
+                let errorMsg = 'Error en el reconocimiento de voz.';
+                if (event.error === 'no-speech') {
+                    errorMsg = 'No se detectó habla. Intenta de nuevo.';
+                } else if (event.error === 'not-allowed') {
+                    errorMsg = 'Permiso de micrófono denegado. Por favor, permite el acceso al micrófono en la configuración de tu navegador.';
+                }
+                addMessage(errorMsg, false);
+                stopRecording();
+            };
+            
+            try {
+                recognition.start();
+                // Guardar referencia para poder detenerla
+                window.currentRecognition = recognition;
+            } catch (error) {
+                console.error('Error al iniciar reconocimiento:', error);
+                addMessage('Error al iniciar la grabación. Por favor, intenta de nuevo.', false);
+                stopRecording();
+            }
+        }
+        
+        // Función para detener grabación
+        function stopRecording() {
+            if (window.currentRecognition && isRecording) {
+                try {
+                    window.currentRecognition.stop();
+                } catch (e) {
+                    // Ignorar errores si ya se detuvo
+                    console.log('El reconocimiento ya estaba detenido');
+                }
+            }
+            isRecording = false;
+            recordButton.style.display = 'flex';
+            recordingStatus.style.display = 'none';
+            userInput.disabled = false;
+            sendButton.disabled = false;
+            userInput.focus();
+        }
+        
+        // Función para enviar mensaje al chat
+        async function sendChatMessage(question, generateAudio = false) {
+            // Deshabilitar input mientras se procesa
+            userInput.disabled = true;
+            sendButton.disabled = true;
+            recordButton.disabled = true;
+            
+            // Remover indicador de escritura anterior si existe
+            removeTypingIndicator();
+            
+            // Crear mensaje con cargador donde aparecerá la respuesta
+            const loadingMessageDiv = createLoadingMessage();
+            
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        question: question
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Generar audio y esperar a que esté listo antes de mostrar texto
+                    // DESACTIVADO: Por ahora solo mostrar texto, no convertir a voz
+                    // await speakText(data.answer, null, loadingMessageDiv);
+                    replaceLoaderWithMessage(loadingMessageDiv, data.answer, null);
+                } else {
+                    // En caso de error, mostrar directamente
+                    replaceLoaderWithMessage(loadingMessageDiv, 'Error: ' + (data.error || 'Algo salió mal'), null);
+                }
+            } catch (error) {
+                // En caso de error de conexión, mostrar directamente
+                replaceLoaderWithMessage(loadingMessageDiv, 'Error de conexión: ' + error.message, null);
+            } finally {
+                // Rehabilitar input
+                userInput.disabled = false;
+                sendButton.disabled = false;
+                recordButton.disabled = false;
+                userInput.focus();
+            }
+        }
+        
+        // Manejar envío del formulario
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const question = userInput.value.trim();
+            if (!question) return;
+            
+            // Agregar mensaje del usuario
+            addMessage(question, true);
+            userInput.value = '';
+            
+            // Enviar mensaje (sin audio)
+            await sendChatMessage(question, false);
+        });
+        
+        // Event listeners para grabación
+        recordButton.addEventListener('click', startRecording);
+        stopRecordingButton.addEventListener('click', stopRecording);
+        
+        // Focus automático en el input
+        userInput.focus();
+    </script>
+</body>
+</html>
+

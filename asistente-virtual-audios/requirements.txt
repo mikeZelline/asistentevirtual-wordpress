@@ -1,0 +1,22 @@
+# Requirements para el Asistente Virtual IBUX
+# Instalar con: pip install -r requirements.txt
+# NOTA: Este archivo contiene solo las dependencias esenciales para el asistente virtual.
+# No confundir con requirements_local.txt que contiene todas las dependencias del entorno local.
+
+flask==2.2.2
+Werkzeug==2.2.2
+flask-cors==4.0.0  # CORS para permitir peticiones desde WordPress
+langchain==0.3.27
+langchain-community==0.3.31
+langchain-core==0.3.79
+langchain-huggingface==0.3.1
+langchain-openai==0.3.35
+langgraph==0.6.10
+sentence-transformers==5.1.1
+faiss-cpu==1.12.0
+pypdf==6.1.1
+transformers==4.57.1
+openai==2.3.0
+python-dotenv==1.1.1
+requests==2.32.5
+beautifulsoup4==4.14.2
