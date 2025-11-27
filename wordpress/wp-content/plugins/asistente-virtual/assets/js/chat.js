@@ -24,6 +24,16 @@
             return; // No hay chat en esta página
         }
         
+        // Función para hacer focus sin causar scroll
+        function focusInput() {
+            // Hacer focus sin scroll usando preventScrollIntoView si está disponible
+            if (userInput.focus) {
+                userInput.focus({ preventScroll: true });
+            } else {
+                userInput.focus();
+            }
+        }
+        
         // Función para convertir Markdown básico a HTML
         function markdownToHtml(markdown) {
             if (!markdown) return '';
@@ -167,7 +177,13 @@
             
             messageDiv.appendChild(messageContent);
             chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Hacer scroll solo en el contenedor del chat hasta el final
+            requestAnimationFrame(() => {
+                if (chatMessages) {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            });
         }
         
         // Función para crear mensaje con cargador
@@ -186,7 +202,13 @@
             
             messageDiv.appendChild(messageContent);
             chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Hacer scroll solo en el contenedor del chat hasta el final
+            requestAnimationFrame(() => {
+                if (chatMessages) {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            });
             
             return messageDiv;
         }
@@ -237,6 +259,13 @@
                 messageContent.appendChild(audioControlsDiv);
                 currentAudioMessageDiv = messageDiv;
             }
+            
+            // Hacer scroll solo en el contenedor del chat hasta el final
+            requestAnimationFrame(() => {
+                if (chatMessages) {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            });
         }
         
         // Función para enviar mensaje al chat (AJAX)
@@ -262,20 +291,39 @@
                 if (response.success) {
                     replaceLoaderWithMessage(loadingMessageDiv, response.data.answer, null);
                     
+                    // Asegurar que el scroll del chat vaya hasta el final después de mostrar la respuesta
+                    setTimeout(() => {
+                        if (chatMessages) {
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        }
+                    }, 100);
+                    
                     // Reproducir audio si está habilitado
                     if (asistenteVirtual.enableAudio && response.data.answer) {
                         // speakText se implementaría aquí si se necesita
                     }
                 } else {
                     replaceLoaderWithMessage(loadingMessageDiv, 'Error: ' + (response.data.message || 'Algo salió mal'), null);
+                    setTimeout(() => {
+                        if (chatMessages) {
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        }
+                    }, 100);
                 }
             } catch (error) {
                 replaceLoaderWithMessage(loadingMessageDiv, 'Error de conexión: ' + error.message, null);
+                setTimeout(() => {
+                    if (chatMessages) {
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    }
+                }, 100);
             } finally {
                 userInput.disabled = false;
                 sendButton.disabled = false;
                 if (recordButton) recordButton.disabled = false;
-                userInput.focus();
+                
+                // Hacer focus sin causar scroll
+                focusInput();
             }
         }
         
@@ -367,7 +415,7 @@
             if (recordingStatus) recordingStatus.style.display = 'none';
             userInput.disabled = false;
             sendButton.disabled = false;
-            userInput.focus();
+            focusInput();
         }
         
         // Event listeners para grabación
@@ -378,8 +426,8 @@
             stopRecordingButton.addEventListener('click', stopRecording);
         }
         
-        // Focus automático en el input
-        userInput.focus();
+        // Focus automático en el input (sin causar scroll)
+        focusInput();
     });
     
 })(jQuery);
