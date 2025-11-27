@@ -4,7 +4,6 @@
             <div class="header-content">
                 <div>
                     <h1><?php echo esc_html($atts['title']); ?></h1>
-                    <p><?php echo esc_html($atts['subtitle']); ?></p>
                 </div>
             </div>
         </div>

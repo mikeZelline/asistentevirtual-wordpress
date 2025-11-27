@@ -11,7 +11,7 @@ get_header();
         <div class="site-container">
             <h1>Bienvenido al Asistente Virtual IBUX</h1>
             <p>Tu mentor comercial experto en ventas B2B con enfoque 3C y alto rendimiento. Obtén respuestas instantáneas a todas tus preguntas sobre estrategias comerciales.</p>
-            <a href="#chat" class="btn">Comenzar Ahora</a>
+            <a href="<?php echo esc_url(home_url('/chat')); ?>" class="btn">Comenzar Ahora</a>
         </div>
     </section>
     
@@ -49,6 +49,10 @@ get_header();
             // Mostrar el shortcode del asistente virtual
             echo do_shortcode('[asistente_virtual]');
             ?>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="<?php echo esc_url(home_url('/chat')); ?>" class="btn btn-large">Abrir Chat en Pantalla Completa</a>
+            </div>
         </section>
         
         <!-- Sección de Información Adicional -->
@@ -90,7 +94,7 @@ get_header();
         <section class="cta-section">
             <h2>¿Listo para mejorar tus ventas?</h2>
             <p>Comienza a usar el asistente virtual ahora mismo</p>
-            <a href="#chat" class="btn btn-large">Iniciar Conversación</a>
+            <a href="<?php echo esc_url(home_url('/chat')); ?>" class="btn btn-large">Iniciar Conversación</a>
         </section>
     </div>
 </main>

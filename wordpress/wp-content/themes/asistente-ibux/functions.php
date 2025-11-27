@@ -35,6 +35,59 @@ function asistente_ibux_setup() {
 add_action('after_setup_theme', 'asistente_ibux_setup');
 
 /**
+ * Crear página del chat automáticamente
+ */
+function asistente_ibux_create_chat_page() {
+    $chat_page = get_page_by_path('chat');
+    
+    if (!$chat_page) {
+        $chat_page_data = array(
+            'post_title'    => 'Chat con el Asistente',
+            'post_content'  => '[asistente_virtual]',
+            'post_status'   => 'publish',
+            'post_type'     => 'page',
+            'post_name'     => 'chat'
+        );
+        
+        $page_id = wp_insert_post($chat_page_data);
+        
+        // Asignar el template personalizado si se creó correctamente
+        if ($page_id && !is_wp_error($page_id)) {
+            update_post_meta($page_id, '_wp_page_template', 'template-chat.php');
+        }
+    } else {
+        // Si la página ya existe, asegurarse de que use el template correcto
+        $current_template = get_post_meta($chat_page->ID, '_wp_page_template', true);
+        if ($current_template !== 'template-chat.php') {
+            update_post_meta($chat_page->ID, '_wp_page_template', 'template-chat.php');
+        }
+        // Asegurar que tenga el contenido correcto
+        if (strpos($chat_page->post_content, '[asistente_virtual]') === false) {
+            wp_update_post(array(
+                'ID' => $chat_page->ID,
+                'post_content' => '[asistente_virtual]'
+            ));
+        }
+    }
+}
+// Ejecutar al iniciar WordPress
+add_action('init', 'asistente_ibux_create_chat_page', 1);
+
+/**
+ * Usar template personalizado para la página del chat
+ */
+function asistente_ibux_template_chat($template) {
+    if (is_page('chat')) {
+        $template_chat = locate_template('template-chat.php');
+        if ($template_chat) {
+            return $template_chat;
+        }
+    }
+    return $template;
+}
+add_filter('page_template', 'asistente_ibux_template_chat');
+
+/**
  * Encolar estilos y scripts
  */
 function asistente_ibux_scripts() {

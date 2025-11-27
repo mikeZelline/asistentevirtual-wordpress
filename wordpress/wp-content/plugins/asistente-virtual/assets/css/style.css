@@ -9,8 +9,8 @@
     width: 100%;
     max-width: 800px;
     margin: 0 auto;
-    min-height: 600px;
-    max-height: 800px;
+    min-height: 700px;
+    max-height: 900px;
     background: white;
     border-radius: 20px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -42,9 +42,7 @@
 }
 
 .chat-header p {
-    font-size: 14px;
-    margin: 0;
-    opacity: 0.9;
+    display: none;
 }
 
 .chat-messages {
@@ -381,12 +379,18 @@
 
 @media (max-width: 600px) {
     .chat-container {
-        max-height: 600px;
+        min-height: 700px;
+        max-height: 750px;
         border-radius: 15px;
+    }
+    
+    .chat-header {
+        padding: 20px;
     }
     
     .chat-header h1 {
         font-size: 22px;
+        margin: 0;
     }
     
     .header-content {

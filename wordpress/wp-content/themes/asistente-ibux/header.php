@@ -29,7 +29,7 @@
                 // Menú por defecto si no está configurado
                 echo '<ul class="nav-menu">';
                 echo '<li><a href="' . esc_url(home_url('/')) . '">Inicio</a></li>';
-                echo '<li><a href="' . esc_url(home_url('/')) . '#chat">Chat</a></li>';
+                echo '<li><a href="' . esc_url(home_url('/chat')) . '">Chat</a></li>';
                 echo '</ul>';
             }
             ?>

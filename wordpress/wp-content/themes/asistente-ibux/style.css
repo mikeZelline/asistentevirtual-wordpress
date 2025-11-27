@@ -42,6 +42,12 @@ body {
     z-index: 1000;
 }
 
+@media (max-width: 768px) {
+    .site-header {
+        padding: 15px 0;
+    }
+}
+
 .header-content {
     display: flex;
     justify-content: space-between;
@@ -424,14 +430,26 @@ body {
 /* Responsive */
 @media (max-width: 768px) {
     .header-content {
-        flex-direction: column;
-        gap: 20px;
+        flex-direction: row;
+        justify-content: center;
     }
     
-    .main-navigation ul {
-        flex-direction: column;
-        gap: 15px;
-        text-align: center;
+    /* Ocultar menú en móviles */
+    .main-navigation {
+        display: none;
+    }
+    
+    .site-title {
+        font-size: 24px;
+    }
+    
+    .site-header {
+        padding: 15px 0;
+    }
+    
+    .hero-section {
+        padding: 60px 20px;
+        margin: -40px -20px 40px -20px;
     }
     
     .hero-section h1 {
@@ -451,8 +469,33 @@ body {
         padding: 20px;
     }
     
+    .chat-section {
+        padding: 30px 20px;
+    }
+    
     .cards-grid {
         grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .card {
+        padding: 30px 20px;
+    }
+    
+    .section-title {
+        font-size: 28px;
+    }
+    
+    .features-list {
+        grid-template-columns: 1fr;
+    }
+    
+    .cta-section {
+        padding: 40px 20px;
+    }
+    
+    .cta-section h2 {
+        font-size: 28px;
     }
 }
 
@@ -468,5 +511,26 @@ body {
 
 .content-area h2 {
     margin-top: 0;
+}
+
+/* Estilos para la página de chat */
+.chat-page {
+    padding: 20px !important;
+}
+
+.chat-page .page-title {
+    color: #2c3e50;
+    font-weight: 700;
+}
+
+@media (max-width: 768px) {
+    .chat-page {
+        padding: 10px !important;
+    }
+    
+    .chat-page .page-title {
+        font-size: 24px !important;
+        margin-bottom: 20px !important;
+    }
 }
 
